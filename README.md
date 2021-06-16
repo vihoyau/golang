@@ -1,3 +1,4 @@
+![golang-developer-roadmap-zh-CN](https://user-images.githubusercontent.com/30063579/122187495-a9571a80-cec1-11eb-91f4-37f94366cb9b.png)
 # 关于golang知识汇总（外部）
 
 **说明** ：对于一个后端来说，无疑让自己能有一席之地，要有扎实的计算机基础和数据结构之外，更重要的是从事的后端开发语言，因为选择比能力有时候更加重要。例如小编目前是做nodejs开发的，使用的是动态开发语言，可谓是全栈，目前这种岗位比较少人参与，多数人都选择做java开发去了，只要您有几年开发经验，找个17-20k问题不大。小编现在是想学习golang作为以后的发展方向，因为golang缺少工程师，只要您进入这个领域，至少20k起步。为了获取更多的薪酬，小编利用平时多余的时间，进行学习golang语言。
@@ -170,6 +171,7 @@ func main() {
 * [ ] 当需要改变函数内一个占用内存比较大的变量时，性能优势就更加明显了。但是，传递一个指针很容易引发不确定性。
 
 
+![golang-developer-roadmap-zh-CN](https://user-images.githubusercontent.com/30063579/122187524-aeb46500-cec1-11eb-8b8a-1c53abed7a1e.png)
 
 
 
