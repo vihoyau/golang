@@ -65,4 +65,70 @@ fmt.Print(buffer.String(), "\n")
 
 > 这种方法比+=更节省cpu、内存，尤其是字符串数目比较多的时候。
 
+### 1.3 For-range结构
+
+**定义**：这种构造方法可以应用于切片和数组。
+
+```
+for ix, value := range slice1 {
+    ...
+}
+```
+
+> ix是索引，value是该切片索引下的值。value只是一种拷贝，不能用来修改slice1.
+
+```
+多维下的切片：
+
+for row := range screen {
+    for column := range screen[row] {
+        screen[row][column] = 1
+    }
+}
+```
+
+### 1.4 切片重组
+
+```
+slice1 := make([]type, start_length, capacity)
+```
+
+> start_length:切片初始长度。capacity 相关数组长度。
+> 改变切片长度过程叫做重组：`slice1 = slice1[0:end]` `sl = sl[0:len(sl)+1]`
+
+### 1.5 切片的复制与追加
+
+**应用场景**：如果想增加切片的容量，并且把原来的切片复制过来，我们一般使用append。
+
+```
+package main 
+import 'fmt'
+func main(){
+        sl_from :=[]int{1,2,3}	
+	sl_to :=make([]int,10)
+	n := copy(sl_to,sl_from)        
+        fmt.print(sl_to)
+	fmt.print(n)
+	sl3 :=[]int{1,2,3}	
+        sl3=append(sl3,4,5,6)
+	fmt.print(sl3)
+}
+```
+
+1. 如果sl3不足以追加元素，append会为sl3分配新的切片以确保存储过程
+2. append函数总是返回成功，除非系统内存耗尽
+3. 如果想在将切片y追加到切片x后面，只要将第二个参数拓展成一个列表即可。append(x,y,z...)
+
+> func copy(dst, src []T) int copy 方法将类型为 T 的切片从源地址 src 拷贝到目标地址 dst，覆盖 dst 的相关元素，并且返回拷贝的元素个数。源地址和目标地址可能会有重叠。拷贝个数是 src 和 dst 的长度最小值。如果 src 是字符串那么元素类型就是 byte。如果你还想继续使用 src，在拷贝结束后执行 src = dst
+
+### 1.6 切片和垃圾回收
+
+**内存填满**：切片指向底层数组的，当底层数组没有被指向就会释放内存，但是如果一直被指向，就会占用多余的内存了。往往一个函数，直接返回一个底层数组，却得不到释放，就会一直占用内存。
+**垃圾回收**：为了解决上述问题，我们采取创建新的一个切片，把需要返回的切片复制到新的切片里面，即可返回。
+
+
+
+
+
+
 
