@@ -28,3 +28,40 @@
 **new 和 make 的区别**：都是分配内存，行为不同，适用类型就不同。new(T)适用于数组和结构体。make(T)适用于切片、map和channel。换言之，new函数分配内存，make函数初始化。
 <br/>
 ![0JP6mwnf6J](https://user-images.githubusercontent.com/30063579/122150421-4a2ce200-ce90-11eb-9e71-3741efc0a196.png)
+**多维切片**：简单来说就是切片的切片，内层的切片需要单独分配（通过make）
+<br/>
+**bytes包**：和字符串包十分相似，而且还包含了十分有用的buffer类型。
+<br/>
+
+```
+import "bytes"
+	type Buffer struct {
+	...
+}
+这是一个bytes类型的buffer，可以read和write功能。
+```
+
+```
+1,buffer可以这样定义 var buffer bytes.buffer
+2,或者使用new 获得一个指针
+3,var r *bytes.Buffer =new （bytes.Buffer）
+4,或者通过函数 ： func NewBuffer(buf []byte)  *Buffer
+```
+
+**通过buffer串联字符串**：我们创建一个buffer，通过buffer.WriteString(s)将字符串s追加在后面。最后通过buffer.String()转换成字符串。
+
+```
+var buffer bytes.Buffer
+for {
+    if s, ok := getNextString(); ok { //method getNextString() not shown here
+        buffer.WriteString(s)
+    } else {
+        break
+    }
+}
+fmt.Print(buffer.String(), "\n")
+```
+
+> 这种方法比+=更节省cpu、内存，尤其是字符串数目比较多的时候。
+
+
