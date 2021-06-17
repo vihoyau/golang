@@ -329,4 +329,261 @@ func main() {
 }
 ```
 
+## 4. 包（package）
+
+### 4.1 标准库概述
+
+**定义**：向os，fmt 这样具有常用功能的内置包在go语言中有150个以上，它们被称为标准库。大部分内置于go本身。
+
+### 4.2 锁和sync包
+
+**定义**：当线程访问一个变量时，我们为它上锁，直到完成操作并解锁后，其他线程才能访问它。
+**应用**：map中不出现锁的机制来实现这种资源竞争的效果，出于性能考虑。所以map是非线程安全的。当并行访问map，map将会出错。
+**解决方法**：在go中，我们对于这种锁的机制，是用sync包中的Mutex来实现的。意味着，线程有序地对同一变量访问。
+
+```
+import  "sync"
+
+type Info struct {
+    mu sync.Mutex
+    // ... other fields, e.g.: Str string
+}
+```
+
+```
+共享缓存器：
+type SyncedBuffer struct {
+    lock    sync.Mutex
+    buffer  bytes.Buffer
+}
+```
+
+> sync.Mutex是一个互斥锁，它的作用是守护在临界区入口，保障在同一时间只能有一个线程进入临界区。
+
+**`RWMutex`**：同时允许多个线程对变量的读操作，但是只能允许一个写操作。
+
+* [ ] 但是以上操作会导致程序变慢，我们需要重新思考goroutines和channels来解决问题。这是go语言提前用来解决并发问题的方法。
+
+### 4.3 精密计算和big包
+
+**应用场景**：如果我们对数据精度十分严格，float是满足不了的，因为它在内存中只是表示近似。
+
+**定义**：对于整数高精度，我们使用big.Int类型。缺点是：当数据足够大，开销大，要比内置类型慢得多。
+
+**解决方法**：为了解决上述问题，go提供了：Add() 和 Mul() 方法，所以没有必要创建Big.int 来存放中间结果，采用内存链式存储即可。
+
+```
+// big.go
+package main
+
+import (
+    "fmt"
+    "math"
+    "math/big"
+)
+
+func main() {
+    // Here are some calculations with bigInts:
+    im := big.NewInt(math.MaxInt64)
+    in := im
+    io := big.NewInt(1956)
+    ip := big.NewInt(1)
+    ip.Mul(im, in).Add(ip, im).Div(ip, io)
+    fmt.Printf("Big Int: %v\n", ip)
+    // Here are some calculations with bigInts:
+    rm := big.NewRat(math.MaxInt64, 1956)
+    rn := big.NewRat(-1956, math.MaxInt64)
+    ro := big.NewRat(19, 56)
+    rp := big.NewRat(1111, 2222)
+    rq := big.NewRat(1, 1)
+    rq.Mul(rm, rn).Add(rq, ro).Mul(rq, rp)
+    fmt.Printf("Big Rat: %v\n", rq)
+}
+
+/* Output:
+Big Int: 43492122561469640008497075573153004
+Big Rat: -37/112
+*/
+```
+
+### 4.4 自定义包和可见性
+
+**导入外部安装包**：```go install``` 将包安装在 `$GOROOT/src/` 目录下
+
+**包的初始化**：导入的包，在包自身初始化前被初始化，而一个包在程序执行中只能被初始化一次。
+
+### 4.5 安装自定义包
+
+`go install -a`
+
+## 5. 结构与方法（struct&method）
+
+### 5.1 章节说明
+
+**定义**：GO通过类型别名和结构体的形式支持用户自定义类型。在java中，叫做ADT，抽象数据类型。
+
+### 5.2 结构体定义
+
+`type T struct {a, b int}` 是一个合法的定义方式。
+
+**定义**：
+**递归结构体**
+
+```
+type Tree strcut {
+	le      *Tree
+	data    float64
+	ri      *Tree
+}
+```
+
+### 5.3 使用工厂方法创建结构体实例
+
+```
+type File struct {
+    fd      int     // 文件描述符
+    name    string  // 文件名
+}
+
+func NewFile(fd int, name string) *File {
+    if fd < 0 {
+        return nil
+    }
+
+    return &File{fd, name}
+}
+f := NewFile(10, "./test.txt")
+```
+
+**应用场景**：我们常常使用上述的工厂方法来实现构造函数。
+
+* [ ] 如果File是结构体类型，那么new(File)和&File{}是等价的。相对于java，File f = new File() ，简单。
+* [ ] 如果我们想知道一个结构体T实例占用多少内存，则 size :=unsafe.SizeOf(T{})
+
+**如何强制使用工厂方法**：禁止使用new函数，从而使得结构体是私有的。
+
+```
+type matrix struct {
+    ...
+}
+
+func NewMatrix(params) *matrix {
+    m := new(matrix) // 初始化 m
+    return m
+}
+```
+
+**在其他包下使用工厂方法**
+
+```
+package main
+import "matrix"
+...
+wrong := new(matrix.matrix)     // 编译失败（matrix 是私有的）
+right := matrix.NewMatrix(...)  // 实例化 matrix 的唯一方式
+```
+
+**map&struct vs new()&make()**
+
+```
+package main
+
+type Foo map[string]string
+type Bar struct {
+    thingOne string
+    thingTwo int
+}
+
+func main() {
+    // OK
+    y := new(Bar)
+    (*y).thingOne = "hello"
+    (*y).thingTwo = 1
+
+    // NOT OK
+    z := make(Bar) // 编译错误：cannot make type Bar
+    (*z).thingOne = "hello"
+    (*z).thingTwo = 1
+
+    // OK
+    x := make(Foo)
+    x["x"] = "goodbye"
+    x["y"] = "world"
+
+    // NOT OK
+    u := new(Foo)
+    (*u)["x"] = "goodbye" // 运行时错误!! panic: assignment to entry in nil map
+    (*u)["y"] = "world"
+}
+```
+
+### 5.3 匿名字段和内嵌结构体
+
+**定义**：结构体中，可以包含内嵌结构体。
+**区别**：在go中，相比较继承，组合更受欢迎。
+
+* [ ] 同样地，结构体也是一种数据类型，所以它可以内作为内嵌字段来使用。
+
+### 5.4 命名冲突
+
+**定义**：很可能通过继承匿名结构体，导致字段命名冲突，必须由程序员自身修改。
+
+### 5.5 方法
+
+**定义**：在go中，结构体就像是类的一个简化形式。GO方法是作用在接受者（receiver）上的函数。接受者是某种类型的变量。因此，方法是一种特殊类型的函数。
+
+* [ ] 接受者不能是一个接口类型。因为方法是一种实现，而接口只是一种抽象定义。
+* [ ] 接收者不能是一个指针类型，但是它可以是任何类型的指针。
+* [ ] 一个类型加上它的方法，等价于面向对象中的类。
+* [ ] 类型T的所有方法的集合，叫做T的方法集
+* [ ] **定义方法** `func (recv receiver_type) methodName(parameter_list) (return_value_list) { ... }`
+
+### 5.6 函数和方法的区别
+
+**定义**：函数将变量变为参数，方法在变量上被调用。
+
+**指针或值作为接收者**：`func (b *B) change() { b.thing = 1 }`
+**方法和未导出字段**：和java中的getter、setter一样，对于setter使用set作为前缀，get只使用方法名。
+
+> 另外：防止并发set，为了解决当前问题，请使用sync包
+
+### 5.7 内嵌类型的方法和包
+
+**如何在类型中嵌入功能**：聚合、内嵌
+**多重继承**：一般在java中不被实现的，因为在编译器中引入额外的复杂度。在go中，通过在类型中嵌入有必要的父类型，可以很简单地实现多重继承。
+
+```
+package main
+
+import (
+    "fmt"
+)
+
+type Camera struct{}
+
+func (c *Camera) TakeAPicture() string {
+    return "Click"
+}
+
+type Phone struct{}
+
+func (p *Phone) Call() string {
+    return "Ring Ring"
+}
+
+type CameraPhone struct {
+    Camera
+    Phone
+}
+
+func main() {
+    cp := new(CameraPhone)
+    fmt.Println("Our new CameraPhone exhibits multiple behaviors...")
+    fmt.Println("It exhibits behavior of a Camera: ", cp.TakeAPicture())
+    fmt.Println("It works like a Phone too: ", cp.Call())
+}
+```
+
+
+
 
