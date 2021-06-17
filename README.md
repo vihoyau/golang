@@ -213,3 +213,120 @@ func main() {
 ### 2.8 通过内存缓存来提升性能
 
 **定义**：在大量计算时，避免重复计算。通过利用内存的缓存和利用相同的计算结果称之为内存缓存。
+
+## 3.函数
+
+### 3.1 介绍
+
+**定义**：key-value 的元素对无序集合，称之为关联数组或者字典。是一种快速寻找值的理想结构，在java中称之为hash，hashtable等
+
+### 3.2 声明、初始化、make
+
+**声明**：在声明的时候，不需要知道map的长度，是可以动态增长的。
+
+```
+var map1 map[keytype]valuetype
+```
+
+> 切片和结构体不能作为key，但是指针和接口类型可以。
+> value可以是任意类型的，但是当我们使用value之前，需要做类型判断
+> map读取速度比线性查找快得多，但是比数组和切片用索引读取慢100倍。索引您很在乎性能的话，还是用切片解决问题
+> **不要使用new，永远用make来构造map**：因为new相当于分配一个空指针，相当于声明了未初始化并且获得它的地址，当被调用时，就会报错。
+> <br/>
+
+**map也可以用函数作为自己的值，这样可以用来做分支结构**
+
+```
+mf := map[int] func()  int{
+        1: func()  int { return 10 },
+        2: func()  int { return 20 },
+        5: func()  int { return 50 },
+}
+```
+
+**用切片作为map的值**：当需要管理多个进程的子进程时候，可以优雅地这样解决
+
+```
+mp1 := make(map[int][]int)
+mp2 := make(map[int]*[]int)
+```
+
+### 3.3 测试键值对是否存在及删除元素
+
+```
+`val1, isPresent = map1[key1]`
+```
+
+* [ ] 上述表明，如果key1存在，val1是key1对应的值，并且isPresent为true。反之val1为空值，isPresent为false
+* [ ] 我们也可以不关心value是什么  ```_, ok := map1[key1] // 如果key1存在则ok == true，否则ok为false```
+* [ ] 从map1中删除key1 ```delete(map1,key1) ```
+
+### 3.4 for-range的配套使用
+
+```
+for key, value := range map1 {
+    ...
+}
+```
+
+### 3.5 map类型的切片使用
+
+**方案**：应该通过索引使用map元素，第二种方法只是对map的值进行拷贝。
+
+```
+package main
+import "fmt"
+
+func main() {
+    // Version A:
+    items := make([]map[int]int, 5)
+    for i:= range items {
+        items[i] = make(map[int]int, 1)
+        items[i][1] = 2
+    }
+    fmt.Printf("Version A: Value of items: %v\n", items)
+
+    // Version B: NOT GOOD!
+    items2 := make([]map[int]int, 5)
+    for _, item := range items2 {
+        item = make(map[int]int, 1) // item is only a copy of the slice element.
+        item[1] = 2 // This 'item' will be lost on the next iteration.
+    }
+    fmt.Printf("Version B: Value of items: %v\n", items2)
+}
+```
+
+### 3.6 map的排序
+
+**定义**：默认是无序的，如果需要对map进行排序，需要将key或者value拷贝到切片中，然后用切片进行排序
+
+### 3.7 将map的键值对调
+
+**前提条件**：value是唯一的，且value的值类型可以作为key。其实很简单，通过for循环，进行深度拷贝到另外一个map中即可。
+
+```
+package main
+import (
+    "fmt"
+)
+
+var (
+    barVal = map[string]int{"alpha": 34, "bravo": 56, "charlie": 23,
+                            "delta": 87, "echo": 56, "foxtrot": 12,
+                            "golf": 34, "hotel": 16, "indio": 87,
+                            "juliet": 65, "kili": 43, "lima": 98}
+)
+
+func main() {
+    invMap := make(map[int]string, len(barVal))
+    for k, v := range barVal {
+        invMap[v] = k
+    }
+    fmt.Println("inverted:")
+    for k, v := range invMap {
+        fmt.Printf("Key: %v, Value: %v / ", k, v)
+    }
+}
+```
+
+
