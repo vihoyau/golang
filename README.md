@@ -585,5 +585,393 @@ func main() {
 ```
 
 
+## 6. 读写数据
+
+### 6.1 文件读写
+
+**文件句柄**：文件使用指向os.File指针来表示
+
+```
+package main
+import (
+    "bufio"
+    "fmt"
+    "io"
+    "os"
+)
+
+func main() {
+    inputFile, inputError := os.Open("input.dat")
+    if inputError != nil {
+        fmt.Printf("An error occurred on opening the inputfile\n" +
+            "Does the file exist?\n" +
+            "Have you got acces to it?\n")
+        return // exit the function on error
+    }
+    defer inputFile.Close()
+
+    inputReader := bufio.NewReader(inputFile)
+    for {
+        inputString, readerError := inputReader.ReadString('\n')
+    fmt.Printf("The input was: %s", inputString)
+        if readerError == io.EOF {
+            return
+        }      
+    }
+}
+```
+
+`流程如下：1,先用os.Open指向这个文件名，形成一个指针句柄inputFile。2，检查inputError是否可读或者有没有权限打开这个文件。3，如果正常打开，则defer inputFile.close()  4,然后使用bufio获取读取器NewReader。5，无限循环ReadString，一行一行读取句柄。
+<br/>
+
+**其他类似函数**：io/ioutil->ioutil.ReadFile() ,第一个返回值是byte[]，第二个返回值是nil。WriteFile方法可以把byte[] 写入另外一个文件中。
+
+```
+package main
+import (
+    "fmt"
+    "io/ioutil"
+    "os"
+)
+
+func main() {
+    inputFile := "products.txt"
+    outputFile := "products_copy.txt"
+    buf, err := ioutil.ReadFile(inputFile)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "File Error: %s\n", err)
+        // panic(err.Error())
+        }
+    fmt.Printf("%s\n", string(buf))
+    err = ioutil.WriteFile(outputFile, buf, 0644) // oct, not hex
+    if err != nil {
+        panic(err.Error())
+    }
+}
+```
+
+<br/>
+
+**带缓存的读取**：当文件不是按行划分的，或者是一个二进制文件。ReadString就无法使用了，我们可以使用bufio.Reader 中的Read()
+
+```
+buf := make([]byte, 1024)
+...
+n, err := inputReader.Read(buf)
+if (n == 0) { break}
+```
+
+<br/>
+
+**读取文件中的数据**：如果数据是按列排行，并用空格分割的，可以使用fmt包中提供的FScan函数来读取
+
+```
+package main
+import (
+    "fmt"
+    "os"
+)
+
+func main() {
+    file, err := os.Open("products2.txt")
+    if err != nil {
+        panic(err)
+    }
+    defer file.Close()
+
+    var col1, col2, col3 []string
+    for {
+        var v1, v2, v3 string
+        _, err := fmt.Fscanln(file, &v1, &v2, &v3)
+        // scans until newline
+        if err != nil {
+            break
+        }
+        col1 = append(col1, v1)
+        col2 = append(col2, v2)
+        col3 = append(col3, v3)
+    }
+
+    fmt.Println(col1)
+    fmt.Println(col2)
+    fmt.Println(col3)
+}
+```
+
+* [ ] path包里包含一个子包，filepath。跨平台函数，用来处理文件名和路径。
+  <br/>
+
+**读取压缩文件**：compress包提供。支持的格式：bzip2，flate，gzip，lzw，zlib
+
+```
+package main
+
+import (
+    "fmt"
+    "bufio"
+    "os"
+    "compress/gzip"
+)
+
+func main() {
+    fName := "MyFile.gz"
+    var r *bufio.Reader
+    fi, err := os.Open(fName)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "%v, Can't open %s: error: %s\n", os.Args[0], fName,
+            err)
+        os.Exit(1)
+    }
+    fz, err := gzip.NewReader(fi)
+    if err != nil {
+        r = bufio.NewReader(fi)
+    } else {
+        r = bufio.NewReader(fz)
+    }
+
+    for {
+        line, err := r.ReadString('\n')
+        if err != nil {
+            fmt.Println("Done reading file")
+            os.Exit(0)
+        }
+        fmt.Println(line)
+    }
+}
+```
+
+<br/>
+
+**写文件**：
+
+```
+outputFile, outputError := os.OpenFile(“output.dat”, os.O_WRONLY|os.O_CREATE, 0666)
+```
+
+<br/>
+
+**OpenFile**：三个参数：文件名，一个或多个标志，使用权限
+
+* `os.O_RDONLY`：只读
+* `os.O_WRONLY`：只写
+* `os.O_CREATE`：创建：如果指定文件不存在，就创建该文件。
+* `os.O_TRUNC`：截断：如果指定文件已存在，就将该文件的长度截为 0。
+
+> 写文件时，权限必须是0666
+
+### 6.2 拷贝文件
+
+```
+// filecopy.go
+package main
+
+import (
+    "fmt"
+    "io"
+    "os"
+)
+
+func main() {
+    CopyFile("target.txt", "source.txt")
+    fmt.Println("Copy done!")
+}
+
+func CopyFile(dstName, srcName string) (written int64, err error) {
+    src, err := os.Open(srcName)
+    if err != nil {
+        return
+    }
+    defer src.Close()
+
+    dst, err := os.OpenFile(dstName, os.O_WRONLY|os.O_CREATE, 0644)
+    if err != nil {
+        return
+    }
+    defer dst.Close()
+
+    return io.Copy(dst, src)
+}
+```
+
+### 6.3 用buffer读取文件
+
+**os包**：有个string类型的切片变量os.Args
+
+### 6.4 用切片读取文件
+
+```
+func cat(f *os.File) {
+    const NBUF = 512
+    var buf [NBUF]byte
+    for {
+        switch nr, err := f.Read(buf[:]); true {
+        case nr < 0:
+            fmt.Fprintf(os.Stderr, "cat: error reading: %s\n", err.Error())
+            os.Exit(1)
+        case nr == 0: // EOF
+            return
+        case nr > 0:
+            if nw, ew := os.Stdout.Write(buf[0:nr]); nw != nr {
+                fmt.Fprintf(os.Stderr, "cat: error writing: %s\n", ew.Error())
+            }
+        }
+    }
+}
+```
+
+### 6.5 JSON 数据 格式
+
+* [ ] 数据结构-> 指定格式 = 序列化 或 编码  （传输之前）
+* [ ] 指定格式-> 数据结构 = 反序列化 或 解码 (传输之后)
+
+1. 序列化是内存把数据转换成指定格式，反之亦然。
+2. 编码也是一样的，输出一种数据流(实现io.Writer接口)，解码是从一个数据流(实现io.Reader)输出到一个数据结构。
+
+**json对应GO中的类型**
+
+| `golang` | bool | float64 | string |nil |
+| --- | --- | --- | --- | --- |
+|  `json`| booleans |  numbers| strings |null |
+
+<br/>
+
+**反序列化**:  首先创建结构用来保存解码后的数据
+<br/>
+**解码任意的数据**:json包使用，map[string] interface {} 和 []interface 存储json任意的对象和数据。其可以被反序列为任何的json blob 存储到接口值中。
+
+```
+var f interface{}
+err := json.Unmarshal(b, &f)
+```
+
+* [ ] 直接使用Unmarshal对该数据结构编码并保存到接口中
+* [ ] 要使用这个数据，我们可以使用类型断言。`m := f.(map[string]interface{})`
+
+<br/>
+
+**解码数据到结构中**:首先事先知道JSON数据，然后将其反序列化。
+
+```
+type FamilyMember struct {
+    Name    string
+    Age     int
+    Parents []string
+}
+
+var m FamilyMember
+err := json.Unmarshal(b, &m)
+```
+
+* [ ] 实际上是分配了一个切片。这是一个典型的反序列化引用类型（指针、切片、map）的例子。
+  <br/>
+
+**编码与解码流**:json包提供了Decoder和Encoder来支持常用JSON数据流读写。
+
+> 要想JSON直接写入文件，可以使用json.NewEncoder初始化文件。并调用Encode()
+
+```
+func NewDecoder(r io.Reader) *Decoder
+func (dec *Decoder) Decode(v interface{}) error
+```
+
+* [ ] 数据结构可以是任何类型，只要实现了某种接口，目标或源数据要能够实现编码就必须实现io.Reader和io.Writer接口。
+
+### 6.6 XML数据格式
+
+**场景**:和json格式一样，XML也可以序列化和反序列化。
+
+* [ ] encoding/XML 包实现了一个简单的XML解析器，用来解析XML数据内容。
+
+### 6.7 用Gob传输数据
+
+**定义**:Gob是自己的以二进制形式序列化和反序列化程序数据的格式。可以在encoding包中找到。这种格式的数据简称为Gob（Go binary），类似java中的 Serialization。
+
+* [ ] Gob通常用于远程方法调用参数和结果的传输，以及应用程序和机器之间的传输。
+* [ ] 它和JSON、XML有什么不同呢？Gob特定地用于纯Go的环境中，而不是像JSON和XML那样的文本格式。
+* [ ] 两个GO服务之间的通信，这样的话，服务可以被实现的更加高效和优化。
+* [ ] GOb 并不是用于GO的语言，而是编码解码中用到GO的反射。
+* [ ] Gob文件或流是完全自描述的，里面包含的所有类型都有一个对应的描述，并且总是可以用Go解码，并不需要了解文件内容。
+* [ ] 只有可导出的字段被编码，零值被忽略。
+* [ ] 在解码结构体中，只有同时匹配名字和类型的字段才会被解码。
+* [ ] 和JSON的使用方式一样，GOb使用通用的io.Writer接口，通过NewEncoder创建Encoder函数并调用Encoder对象。
+
+```
+// gob2.go
+package main
+
+import (
+    "encoding/gob"
+    "log"
+    "os"
+)
+
+type Address struct {
+    Type             string
+    City             string
+    Country          string
+}
+
+type VCard struct {
+    FirstName   string
+    LastName    string
+    Addresses   []*Address
+    Remark      string
+}
+
+var content string
+
+func main() {
+    pa := &Address{"private", "Aartselaar","Belgium"}
+    wa := &Address{"work", "Boom", "Belgium"}
+    vc := VCard{"Jan", "Kersschot", []*Address{pa,wa}, "none"}
+    // fmt.Printf("%v: \n", vc) // {Jan Kersschot [0x126d2b80 0x126d2be0] none}:
+    // using an encoder:
+    file, _ := os.OpenFile("vcard.gob", os.O_CREATE|os.O_WRONLY, 0666)
+    defer file.Close()
+    enc := gob.NewEncoder(file)
+    err := enc.Encode(vc)
+    if err != nil {
+        log.Println("Error in encoding gob")
+    }
+}
+```
+
+### 6.8 Go中的密码学
+
+**定义**:通过网络传输的数据必须加密，以防止被hacker读取或篡改，并且保证发出的数据和收到的数据验证一致。
+
+| 类型| 方法1 | 方法2 |方法3| 方法4
+| --- | --- | --- | --- | --- |
+| hash 校验| adler32 | crc32 |crc64 | fnv
+| cryto 校验| md4 | md5 |sha1 | aes、blowfish、rc4、rsa、xtea
+
+```
+// hash_sha1.go
+package main
+
+import (
+    "fmt"
+    "crypto/sha1"
+    "io"
+    "log"
+)
+
+func main() {
+    hasher := sha1.New()
+    io.WriteString(hasher, "test")
+    b := []byte{}
+    fmt.Printf("Result: %x\n", hasher.Sum(b))
+    fmt.Printf("Result: %d\n", hasher.Sum(b))
+    //
+    hasher.Reset()
+    data := []byte("We shall overcome!")
+    n, err := hasher.Write(data)
+    if n!=len(data) || err!=nil {
+        log.Printf("Hash write error: %v / %v", n, err)
+    }
+    checksum := hasher.Sum(b)
+    fmt.Printf("Result: %x\n", checksum)
+}
+```
 
 
